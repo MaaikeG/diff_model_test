@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 def plot_samples(model, shape, n_samples = 10, classes = torch.as_tensor([0,1,2,3,4,5,6,7,8,9]), device='cpu'):
     shape = [n_samples] + list(shape) 
     class_encoding = torch.nn.functional.one_hot(classes, num_classes = 10).to(device)
-    samples = model.sample(shape, classes=class_encoding)
+    samples = model.sample(shape, classes=class_encoding, w=3.)
     _, axes = plt.subplots(1, 10, figsize=(20, 2))
     for ax_idx, ax in enumerate(axes):
-        ax.contourf(samples[ax_idx][0].cpu())
+        ax.contourf(samples[ax_idx][0].cpu(), origin='upper')
     plt.show()
 
 

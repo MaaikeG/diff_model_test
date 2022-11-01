@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 from plotting import plot_samples
 
 
-def get_loss(model, loss_fn, x_0, t_s, class_encoding):
+def get_loss(model, loss_fn, x_0, t, dt):
 
-    x_t, ground_truth = model.apply_noise(x_0, t_s)
+    d_x = model.apply_noise(x_0, t, dt)
 
-    prediction = model.forward(x_t, t_s, class_encoding)
+    prediction = model.forward(x_t, t_s)
 
     return loss_fn(prediction, ground_truth)
 
@@ -19,12 +19,14 @@ def batch_iteration(model, loss_fn, optimizer, batch, device):
 
     x_0 = batch[0].to(device)
 
-    class_encoding = torch.nn.functional.one_hot(batch[1], num_classes = 10).to(device)
+    t = random.uniform(0, 1)
+    dt = abs(random.normalvariate(0, 0.001))
 
-    t = random.randint(0, model.T-1)
-    t_s = torch.full([x_0.shape[0]], t).to(x_0.device)  
+    # ensure we don't go out of bounds for t
+    if t + dt >= 1:
+        t -= (t + dt - 1)
 
-    loss = get_loss(model, loss_fn, x_0, t_s, class_encoding)
+    loss = get_loss(model, loss_fn, x_0, t, dt)
     loss.backward()
     optimizer.step()
 
@@ -34,6 +36,9 @@ def batch_iteration(model, loss_fn, optimizer, batch, device):
 def train(model, loss_fn, data_loader, optimizer, n_iterations, scheduler=None, device='cpu', plot_interval=100):
        
     for i in range(n_iterations):
+
+        if plot_interval >= 0 and i % plot_interval == 0:        
+            plot_samples(model, shape = data_loader.dataset[0][0].shape, n_samples = 10, device=device)
 
 
         iteration_loss = 0.
@@ -48,9 +53,6 @@ def train(model, loss_fn, data_loader, optimizer, n_iterations, scheduler=None, 
             if batch_idx % 10 == 0:
                 print(f'Batch {batch_idx}/{len(data_loader)} - batch loss: {loss}', end='\r', flush=True)
 
-
-        if True:#plot_interval >= 0 and i % plot_interval == 0:        
-            plot_samples(model, shape = data_loader.dataset[0][0].shape, n_samples = 10, device=device)
 
     
         if scheduler is not None:
