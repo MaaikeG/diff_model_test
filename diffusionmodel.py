@@ -7,15 +7,6 @@ from numpy import ndarray
 
 
 
-def get_items_reshaped(arr, indices, shape):
-    items = arr[indices]
-    while len(shape) > items.ndim:
-        items = items[..., None]
-    items = torch.broadcast_to(items, shape)
-    return items
-
-
-
 class DiffusionModel(torch.nn.Module):
     def __init__(self,
                  potential,
@@ -28,16 +19,20 @@ class DiffusionModel(torch.nn.Module):
         self.potential=potential
         self.to(device)
 
-        
-    @property
-    def T(self):
-        return len(self.betas)
 
+    # actually, maybe revert some changes to go back to the way it was: all you change is the potential function in the input, which is now an interpolation between prior, target and NN
+    def forward(self, x, t, dt):
 
-    def forward(self, x_t, t_s, classes):
-        # perform dropout on the conditional information so we don't rely on only the class
-        classes = self.condition_information_dropout(classes.float())
-        return self.net(x_t, t_s, classes)
+        # g(t) is the variance of the noise at time t
+        g_t = self.variance_schedule(t)
+
+        # get prediction of the score at t...
+        u_t = self.potential.force(x, t)
+
+        # and multiply with the squared variance to get the inverse
+        dx =  g_t**2 * u_t
+
+        return dx
 
 
     def variance_schedule(t):
@@ -45,7 +40,8 @@ class DiffusionModel(torch.nn.Module):
         return 1 - t                     
 
 
-    def apply_noise(self, x_0, t, dt):
+    def compute_dx(self, x_0, t, dt):
+        # eq (11) of SCORE-BASED GENERATIVE MODELING THROUGH STOCHASTIC DIFFERENTIAL EQUATIONS
         noise = torch.randn_like(x_0)
         beta = self.noise_schedule(t)
         dx = - 0.5 * beta * x_0 * dt + math.sqrt(beta) * noise

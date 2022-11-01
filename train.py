@@ -7,11 +7,11 @@ from plotting import plot_samples
 
 def get_loss(model, loss_fn, x_0, t, dt):
 
-    d_x = model.apply_noise(x_0, t, dt)
+    dx = model.compute_dx(x_0, t, dt)
 
-    prediction = model.forward(x_t, t_s)
+    prediction = model.forward(x_0, t, dt)
 
-    return loss_fn(prediction, ground_truth)
+    return loss_fn(dx / dt, prediction)
 
 
 def batch_iteration(model, loss_fn, optimizer, batch, device):
