@@ -8,9 +8,12 @@ class LinearInterpolation(torch.nn.Module):
         self.target=target
         self.net = net
 
+    def __call__(self, x, t):
+        return self.energy(x, t)
 
     def probability(self, x, t):
         return  np.exp(-self.energy(x, t))
 
     def energy(self, x, t):
-        return self.net(torch.hstack([x, t]))
+        return  (1 - t) * self.target.energy(x) + t * self.prior.energy(x) + t * (1-t) * (self.net(torch.hstack([x, t])))
+        # return self.net(torch.hstack([x, t]))
