@@ -60,17 +60,7 @@ class DiffusionModel(torch.nn.Module):
         self.to(device)
 
 
-    def energy(self, x, t):
+    def __call__(self, x, t):
         '''The energy at position x at time t.'''
-        return self.potential.energy(x, t)
+        return self.potential(torch.hstack([x, t]))
 
-
-    def force(self, x, t):
-        '''Negative gradient of the energies at position x and time t, with respect to the input data x.'''       
-        x.requires_grad_(True)
-        t.requires_grad_(True)
-
-        energies_t = self.energy(x, t).sum()
-        forces_t = torch.autograd.grad(energies_t, x, create_graph=True)[0]
-        dt = torch.autograd.grad(energies_t, t, create_graph=True)[0]
-        return -forces_t, dt
