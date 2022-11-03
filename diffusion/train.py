@@ -17,11 +17,11 @@ def compute_loss(model : DiffusionModel, sde: SDE, loss_fn:callable, x_0:torch.T
 
     force = sde.force(x_0, x_t, t_s)
     
-    prediction = model(x_t, t_s)
+    dx, dt = model(x_t, t_s)
 
     weight = weighting_fn(t)
 
-    return weight * loss_fn(prediction, force) #+ (dt**2).sum()
+    return weight * loss_fn(dx, force) + loss_fn(dt, t).sum()
 
 
 def batch_iteration(model, sde, loss_fn, optimizer, batch, device):

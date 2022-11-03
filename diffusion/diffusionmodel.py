@@ -61,7 +61,7 @@ class DiffusionModel(torch.nn.Module):
 
 
     def __call__(self, x, t):
-        return self.potential(torch.hstack([x,t]))
+      #  return self.potential(torch.hstack([x,t]))
         '''The energy at position x at time t.'''
         return self.force(x, t)
 
