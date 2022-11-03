@@ -10,11 +10,11 @@ class TransitionKernel():
 
     def mean(self, x_0: torch.Tensor, t: torch.Tensor):
         '''Compute the mean of the transition kernel, i.e. given x_0, the mean of p(x_t|x_0)'''
-        return x_0 * torch.exp(-0.5 * self.cumulative_beta(t))
+        return x_0 * torch.exp(-self.cumulative_beta(t))
 
     def std(self, t: torch.Tensor):
         '''Compute the standard deviation of the transition kernel, i.e. given x_0, the std of p(x_t|x_0)'''
-        return torch.sqrt(1 - torch.exp(-self.cumulative_beta(t))) + 1e-15
+        return torch.sqrt(1 - torch.exp(-self.cumulative_beta(t))) + 1e-8
 
 
 class SDE():
