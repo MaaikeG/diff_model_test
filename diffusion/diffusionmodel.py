@@ -1,6 +1,12 @@
 import torch 
 
 
+def default_loss_weighting(t):
+    '''a weighting function to weight the loss for each time t. 
+    This corresponds to \lambda(t) in eq. (7) of the score-SDE paper.'''
+    return 1.
+
+
 class TransitionKernel():
     '''Computes the mean and variance of the (gaussian) transition probability distribution,
     i.e. given x_0, the mean and variance of x_t'''
@@ -49,6 +55,7 @@ class DiffusionModel(torch.nn.Module):
     The interpolation between the three is determined by the interpolation function. '''
     def __init__(self,
                  potential: callable,
+                 sde: SDE,
                  device='cuda', 
                  *args):
 
@@ -56,7 +63,8 @@ class DiffusionModel(torch.nn.Module):
 
         self.device = device
         self.potential=potential
- 
+        self.sde = sde
+
         self.to(device)
 
 
@@ -64,6 +72,7 @@ class DiffusionModel(torch.nn.Module):
       #  return self.potential(torch.hstack([x,t]))
         '''The energy at position x at time t.'''
         return self.force(x, t)
+
 
     def energy(self, x, t):
         '''The energy at position x at time t.'''
@@ -79,3 +88,22 @@ class DiffusionModel(torch.nn.Module):
         forces_t = torch.autograd.grad(energies_t, x, create_graph=True)[0]
         dt = torch.autograd.grad(energies_t, t, create_graph=True)[0]
         return -forces_t, dt
+
+
+    def loss(self, 
+             x_0:torch.Tensor, 
+             t:torch.FloatType,  
+             loss_fn_dx:callable, 
+             loss_fn_dt:callable = lambda _: 0., 
+             weighting_fn:callable=default_loss_weighting) -> torch.Tensor:
+        t_s = torch.full_like(x_0, t)
+
+        x_t = self.sde.forward_sample(x_0, t_s)
+
+        force = self.sde.force(x_0, x_t, t_s)
+        
+        dx, dt = self.force(x_t, t_s)
+
+        weight = weighting_fn(t)
+
+        return weight * (loss_fn_dx(dx, force) + loss_fn_dt(dt))

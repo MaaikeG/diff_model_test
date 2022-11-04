@@ -15,5 +15,5 @@ class LinearInterpolation(torch.nn.Module):
         return  np.exp(-self.energy(x, t))
 
     def energy(self, x, t):
-        return  (1 - t) * self.target.energy(x) + t * self.prior.energy(x) + (t * (1-t)) * (self.net(torch.hstack([x, t])) - self.net(torch.hstack([torch.zeros_like(x), t])))
-        # return self.net(torch.hstack([x, t]))
+        #return  (1 - t) * self.target.energy(x) + t * self.prior.energy(x) + (t * (1-t)) * (self.net(torch.hstack([x, t])) - self.net(torch.hstack([torch.zeros_like(x), t])))
+        return self.net(torch.hstack([x, t])) - self.net(torch.hstack([torch.zeros_like(x), t]))

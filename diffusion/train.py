@@ -4,41 +4,36 @@ from .diffusionmodel import SDE, DiffusionModel
 
 
 
-def default_loss_weighting(t):
-    '''a weighting function to weight the loss for each time t. 
-    This corresponds to \lambda(t) in eq. (7) of the score-SDE paper.'''
-    return 1.
 
+# def compute_loss(model : DiffusionModel, sde: SDE, loss_fn:callable, x_0:torch.Tensor, t:torch.FloatType, weighting_fn:callable=default_loss_weighting, dt_regularization=0.):
+#     t_s = torch.full_like(x_0, t)
 
-def compute_loss(model : DiffusionModel, sde: SDE, loss_fn:callable, x_0:torch.Tensor, t:torch.FloatType, weighting_fn:callable=default_loss_weighting):
-    t_s = torch.full_like(x_0, t)
+#     x_t = sde.forward_sample(x_0, t_s)
 
-    x_t = sde.forward_sample(x_0, t_s)
-
-    force = sde.force(x_0, x_t, t_s)
+#     force = sde.force(x_0, x_t, t_s)
     
-    dx, dt = model(x_t, t_s)
+#     dx, dt = model(x_t, t_s)
 
-    weight = weighting_fn(t)
+#     weight = weighting_fn(t)
 
-    return weight * loss_fn(dx, force) + ((0.01 * dt)**2).sum()
+#     return weight * loss_fn(dx, force) + ((dt_regularization * dt)**2).sum()
 
 
-def batch_iteration(model, sde, loss_fn, optimizer, batch, device):
+def batch_iteration(model: DiffusionModel, loss_fn_dx: callable, loss_fn_dt:callable, optimizer: torch.optim.Optimizer, batch: torch.Tensor, device: torch.DeviceObjType) -> torch.Tensor:
     model.zero_grad()
 
     x_0 = batch.to(device)
 
     t = random.uniform(0, 1)
 
-    loss = compute_loss(model, sde, loss_fn, x_0, t)
+    loss = model.loss(x_0, t, loss_fn_dx, loss_fn_dt)
     loss.backward()
     optimizer.step()
 
     return loss.detach()
 
 
-def train(model, sde, loss_fn, data_loader, optimizer, n_iterations, device='cpu'):
+def train(model, loss_fn_dx, loss_fn_dt, data_loader, optimizer, n_iterations, device='cpu'):
        
     for i in range(n_iterations):
 
@@ -46,7 +41,7 @@ def train(model, sde, loss_fn, data_loader, optimizer, n_iterations, device='cpu
 
         for batch_idx, batch in enumerate(data_loader):
 
-            loss = batch_iteration(model, sde, loss_fn, optimizer, batch, device)
+            loss = batch_iteration(model, loss_fn_dx, loss_fn_dt, optimizer, batch, device)
             loss.detach()
 
             iteration_loss += loss
