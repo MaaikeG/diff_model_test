@@ -26,12 +26,12 @@ def batch_iteration(model, loss_fn, optimizer, x_0):
     return loss.detach()
 
 
-def train(model, loss_fn, data_loader, optimizer, n_iterations, scheduler=None, device='cpu', plot_interval=-1):
+def train(model, loss_fn, data_loader, optimizer, n_iterations, scheduler=None, device='cpu', callback_interval=-1, callback=None):
        
     for i in range(n_iterations):
 
-        if plot_interval >= 0 and i % plot_interval == 0:        
-            plot_samples(model, shape = data_loader.dataset[0][0].shape, n_samples = 10)
+        if callback_interval >= 0 and i % callback_interval == 0:    
+            callback(model)
 
         iteration_loss = 0.
 

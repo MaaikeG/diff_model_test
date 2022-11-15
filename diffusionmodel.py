@@ -97,14 +97,14 @@ class DiffusionModel(torch.nn.Module):
 
     def forward(self, x_t, t_s, classes=None):
         
-        time_embedding = self.time_MLP(t_s)
+   #     time_embedding = self.time_MLP(t_s)
 
         if self.use_guidance:
             class_embedding = self.class_MLP(classes)
             predicted_noise = self.net(x_t, time_embedding, class_embedding) 
             
         else:
-            predicted_noise = self.net(x_t, time_embedding) 
+            predicted_noise = self.net(torch.hstack([x_t, t_s]))
         
         return predicted_noise
 
@@ -129,7 +129,7 @@ class DiffusionModel(torch.nn.Module):
         with torch.no_grad():
             for t in reversed(range(1, self.T)):
                 # make an array of t_s, one for each sample we want.
-                t_s = torch.full(size=[shape[0]], fill_value=t, device=self.device)
+                t_s = torch.full_like(x_t, fill_value=t, device=self.device)
 
                 predicted_noise = self.forward(x_t, t_s)
                 mean = self.sqrt_alpha_inverse[t] * \
