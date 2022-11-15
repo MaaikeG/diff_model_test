@@ -1,5 +1,5 @@
-from turtle import forward
 import torch
+import random
 import math
 from numpy import ndarray
 
@@ -23,38 +23,10 @@ def get_items_reshaped(arr, indices, shape):
     return items
 
 
-
-class SinusodalEmbedding(torch.nn.Module):
-    def __init__(self, embedding_size):
-        super().__init__()
-        # we'll be concatenating sin and cos for half_dim elements, so that
-        # the total embedding is length embedding_size
-        half_size = embedding_size // 2
-
-        divisor = - math.log(10000) / half_size
-        self.divisor = torch.exp(torch.arange(half_size) * divisor)
-
-    def forward(self, x):
-        embeddings = x[:, None] * self.divisor[None,:].to(x.device)
-        embeddings = torch.cat([embeddings.sin(), embeddings.cos()], dim=-1)
-        return embeddings
-
-
-def construct_embedding_MLP(embedding_size):
-    return torch.nn.Sequential(
-            SinusodalEmbedding(embedding_size),
-            torch.nn.Linear(embedding_size, embedding_size), 
-            torch.nn.ReLU()
-        )
-
-
 class DiffusionModel(torch.nn.Module):
     def __init__(self, net, T=100, variance_schedule='Linear', 
                  double_precision=False, 
                  device='cuda', 
-                 time_embedding_size=32,
-                 use_guidance=False,
-                 class_embedding_size=32,
                  *args):
         super().__init__()
 
@@ -78,14 +50,6 @@ class DiffusionModel(torch.nn.Module):
         self.sqrt_alpha_cumprod = torch.sqrt(self.alpha_cum_prod)
         self.sqrt_one_minus_alpha_cumprod = torch.sqrt(self.one_minus_alpha_cumprod)
 
-        self.time_MLP = construct_embedding_MLP(time_embedding_size)
-                
-        self.use_guidance = use_guidance
-        if use_guidance:
-            self.class_MLP = construct_embedding_MLP(class_embedding_size)
-        else:
-            self.class_MLP = None
-
 
         self.to(device)
 
@@ -95,19 +59,9 @@ class DiffusionModel(torch.nn.Module):
         return len(self.betas)
 
 
-    def forward(self, x_t, t_s, classes=None):
+    def forward(self, x_t, t_s):
+        return self.net(torch.hstack([x_t, t_s]))
         
-   #     time_embedding = self.time_MLP(t_s)
-
-        if self.use_guidance:
-            class_embedding = self.class_MLP(classes)
-            predicted_noise = self.net(x_t, time_embedding, class_embedding) 
-            
-        else:
-            predicted_noise = self.net(torch.hstack([x_t, t_s]))
-        
-        return predicted_noise
-
 
     def apply_noise(self, x_0, t_s):
         noise = torch.randn_like(x_0)
@@ -120,6 +74,18 @@ class DiffusionModel(torch.nn.Module):
         
         noisy_x = mean + variance
         return noisy_x, noise
+
+
+    def loss(self, x_0, loss_fn):
+    
+        t = random.randint(0, self.T-1)
+        t_s = torch.full([x_0.shape[0]], t).to(x_0.device)  
+
+        x_t, noise = self.apply_noise(x_0, t_s)
+
+        predicted_noise = self.forward(x_t, t_s)
+
+        return loss_fn(predicted_noise, noise)
 
 
     def sample(self, shape):
